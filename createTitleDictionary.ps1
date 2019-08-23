@@ -72,6 +72,10 @@ if($extractTitles) { #TODO: Support full wiki, not just titles
 			$clean = $line.Substring($line.LastIndexOf("/")+1,$subStrLength)
 			#Remove some wikipedia specifics
 			$clean = $clean.Substring($clean.IndexOf("~")+1)
+			if ($clean -match '_[0-9a-f]{4}') {
+				$indexOfChar = $clean.LastIndexOf("_")
+				$clean = $clean.Substring(0,$indexOfChar)
+			}
 			$percentage = [Math]::truncate($logCnt / $totalCountOfFile * 100)
 			if ($oldPercentage -ne $percentage) { 
 				$oldPercentage = $percentage
