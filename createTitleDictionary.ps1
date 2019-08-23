@@ -62,8 +62,9 @@ if(!(Test-Path $selectedLanguageFile) -or ($force)) {
 [GC]::Collect() 
 if($extractTitles) { #TODO: Support full wiki, not just titles
 	$logCnt = 0
-	$totalCountOfFile = get-content $selectedLanguageFile | measure-object | select-string Count
-	write-host "- Parsing data from $($selectedLanguageFile). Total size: $($totalCountOfFile)" -ForegroundColor Blue #TODO add percentage and int from count
+	$totalCountOfFile = get-content $selectedLanguageFile | measure-object | ForEach-Object {$_.Count}
+	write-host "- Parsing data from $($selectedLanguageFile). Total lines: $($totalCountOfFile)" -ForegroundColor Blue #TODO add percentage and int from count
+	$oldPercentage = 0
 	foreach ($lines in get-content $selectedLanguageFile -ReadCount 0 -Encoding "utf8") {
 		ForEach($line in $lines) {
 			$logCnt += 1
@@ -71,9 +72,10 @@ if($extractTitles) { #TODO: Support full wiki, not just titles
 			$clean = $line.Substring($line.LastIndexOf("/")+1,$subStrLength)
 			#Remove some wikipedia specifics
 			$clean = $clean.Substring($clean.IndexOf("~")+1)
-			if ($($logCnt) % 1000 -eq 0) { 
-				write-host "- Working article #$($logCnt) $($line). Cleaned output: $($clean)" -ForegroundColor Blue
-				Write-host "$($logCnt) / $totalCountOfFile * 100) % done" -ForegroundColor Blue
+			$percentage = [Math]::truncate($logCnt / $totalCountOfFile * 100)
+			if ($oldPercentage -ne $percentage) { 
+				$oldPercentage = $percentage
+				write-host "- Working #$($logCnt) - $($percentage)% done - Candidate: $($line). Cleaned output: $($clean)" -ForegroundColor Blue
 			}		
 			Add-Content -Path "$($selectedLanguageFile).dict" $clean
 		}
