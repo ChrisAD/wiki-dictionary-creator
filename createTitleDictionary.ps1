@@ -62,31 +62,22 @@ if(!(Test-Path $selectedLanguageFile) -or ($force)) {
 [GC]::Collect() 
 if($extractTitles) { #TODO: Support full wiki, not just titles
 	$logCnt = 0
-	write-host "- Parsing data from $($selectedLanguageFile). $(get-content $selectedLanguageFile | measure-object | select-object Count)" -ForegroundColor Blue #TODO add percentage and int from count
+	$totalCountOfFile = get-content $selectedLanguageFile | measure-object | select-string Count
+	write-host "- Parsing data from $($selectedLanguageFile). Total size: $($totalCountOfFile)" -ForegroundColor Blue #TODO add percentage and int from count
 	foreach ($lines in get-content $selectedLanguageFile -ReadCount 0 -Encoding "utf8") {
 		ForEach($line in $lines) {
-		$logCnt += 1
-		$subStrLength = $line.LastIndexOf(".")-$line.LastIndexOf("/")-1
-		$clean = $line.Substring($line.LastIndexOf("/")+1,$subStrLength)
-		#Remove some wikipedia specifics
-		$clean = $clean.Substring($clean.IndexOf("~")+1)
-		if ($($logCnt) % 1000 -eq 0) { 
-			write-host "- Working article #$($logCnt) $($line). Cleaned output: $($clean)" -ForegroundColor Blue
-		}		
-		Add-Content -Path "$($selectedLanguageFile).dict" $clean
-		#write-host "$($clean)"
-		#if ($logCnt -eq 10) {
-		#	break
-		#}
-			#$out += $clean
-			#$out += $clean -replace "_", " "
-			#$out += $clean -replace "-", " "
-			#$out += $clean -replace "_", "" | ForEach-Object{$_ -replace "!", ""} | ForEach-ObjectorEach-Object{$_ -replace "-", ""} | ForEach-Object{$_ -replace "~", ""}
-			#$out = $out | sort -unique
-			#$out | out-file "$($selectedLanguageFile)-wordlist.txt"
-			#Get-Content $path | Sort-Object | Get-Unique | set-content -encoding utf8 -Path $path
-		#}
-	}}
+			$logCnt += 1
+			$subStrLength = $line.LastIndexOf(".")-$line.LastIndexOf("/")-1
+			$clean = $line.Substring($line.LastIndexOf("/")+1,$subStrLength)
+			#Remove some wikipedia specifics
+			$clean = $clean.Substring($clean.IndexOf("~")+1)
+			if ($($logCnt) % 1000 -eq 0) { 
+				write-host "- Working article #$($logCnt) $($line). Cleaned output: $($clean)" -ForegroundColor Blue
+				Write-host "$($logCnt) / $totalCountOfFile * 100) % done" -ForegroundColor Blue
+			}		
+			Add-Content -Path "$($selectedLanguageFile).dict" $clean
+		}
+	}
 } else {
 	write-host "File: "$links[$choice] -ForegroundColor Blue
 }
