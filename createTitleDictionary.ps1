@@ -1,9 +1,14 @@
-#Options
+#Options with default values. These should be inputted preferably from command line. Pull request anyone? 
 $extractTitles = $TRUE
 $force = $FALSE
+$cleanDictionary = $TRUE
 
 #Requirements
 #Install-Module -Name 7Zip4Powershell
+
+if (!(Get-MpPreference | foreach-object{$_.DisableRealtimeMonitoring})) {
+	Write-Host "! - Windows defender Real Time monitoring enabled, expect significant performance reduction! Disable with 'Set-MpPreference -DisableRealtimeMonitoring 1'" -ForegroundColor Red
+}
 
 $localWorkingDirectory = $env:LOCALAPPDATA + "\wikipedia-dictionary-creator"
 if (!(Test-Path $localWorkingDirectory)) {
@@ -46,24 +51,21 @@ Write-Host "? - Choose the number of which language you want to grab titles from
 $choice = Read-Host -Prompt "..."
 #$choice = "166"
 $selectedLanguageFile = "$($localWorkingDirectory)\$($links[$choice].replace('/','')).txt"
-write-host "- $($links[$choice].replace('/','')) selected... Storing file in$($selectedLanguageFile)" -ForegroundColor Blue
+write-host "o - $($links[$choice].replace('/','')) selected... Storing file in$($selectedLanguageFile)" -ForegroundColor Blue
 #Download into a tmp outfile and check if it exists	
 if(!(Test-Path $selectedLanguageFile) -or ($force)) {
 	$fetchUrl = $($url)+$($links[$choice])+$("html.lst") #TODO: Support full wiki, not just titles
-	write-host "- Fetching URL: "$fetchUrl -ForegroundColor Blue
-	Invoke-WebRequest -uri $fetchUrl -OutFile $selectedLanguageFile
-	$fetchUrl = $($url)+$($links[$choice])+$("images.lst") #TODO: Support full wiki, not just titles
-	write-host "- Fetching URL: "$fetchUrl -ForegroundColor Blue
+	write-host "o - Fetching URL: "$fetchUrl -ForegroundColor Blue
 	Invoke-WebRequest -uri $fetchUrl -OutFile $selectedLanguageFile
 } else {
 	write-host "! - $($selectedLanguageFile) exists... Reusing. Use flag -force to re-download" -ForegroundColor Red
 }
-#Garbage collect to clean up the Invoke-WebRequest lol
+#Garbage collect to clean up the Invoke-WebRequest. Probably unnecessary. 
 [GC]::Collect() 
 if($extractTitles) { #TODO: Support full wiki, not just titles
 	$logCnt = 0
 	$totalCountOfFile = get-content $selectedLanguageFile | measure-object | ForEach-Object {$_.Count}
-	write-host "- Parsing data from $($selectedLanguageFile). Total lines: $($totalCountOfFile)" -ForegroundColor Blue #TODO add percentage and int from count
+	write-host "o - Parsing data from $($selectedLanguageFile). Total lines: $($totalCountOfFile)" -ForegroundColor Blue 
 	$oldPercentage = 0
 	foreach ($lines in get-content $selectedLanguageFile -ReadCount 0 -Encoding "utf8") {
 		ForEach($line in $lines) {
@@ -72,18 +74,42 @@ if($extractTitles) { #TODO: Support full wiki, not just titles
 			$clean = $line.Substring($line.LastIndexOf("/")+1,$subStrLength)
 			#Remove some wikipedia specifics
 			$clean = $clean.Substring($clean.IndexOf("~")+1)
-			if ($clean -match '_[0-9a-f]{4}') {
+			if ($clean -match '_[0-9a-f]{4}') { #Todo: recursive
 				$indexOfChar = $clean.LastIndexOf("_")
 				$clean = $clean.Substring(0,$indexOfChar)
 			}
-			$percentage = [Math]::truncate($logCnt / $totalCountOfFile * 100)
-			if ($oldPercentage -ne $percentage) { 
-				$oldPercentage = $percentage
-				write-host "- Working #$($logCnt) - $($percentage)% done - Candidate: $($line). Cleaned output: $($clean)" -ForegroundColor Blue
-			}		
-			Add-Content -Path "$($selectedLanguageFile).dict" $clean
+			$ipRegex = [regex] "\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b"
+			#Ignore IP addresses
+			if (!($clean -match $ipRegex)) {
+				#Show progress 
+				$percentage = [Math]::truncate($logCnt / $totalCountOfFile * 100)
+				if ($oldPercentage -ne $percentage) { 
+					$oldPercentage = $percentage
+					write-host "o - Working #$($logCnt) - $($percentage)% done - Candidate: $($line). Cleaned output before tokenizing: $($clean)" -ForegroundColor Blue
+				}		
+				Add-Content -Path "$($selectedLanguageFile).dict" $clean
+				#Further tokenize the $clean to pull out more and interesting words. 
+				$splitChars = @(";",",",".","-","_","!","@","#","%","&")
+				
+				foreach($chr in $splitChars) {
+					if ($clean.Contains($chr)) {
+						$splits = $clean.Split($chr)
+						foreach ($s in $splits) {
+							Add-Content -Encoding "utf8" -Path "$($selectedLanguageFile).dict" $s
+						}
+					}
+				}
+			}
+			
 		}
 	}
 } else {
-	write-host "File: "$links[$choice] -ForegroundColor Blue
+	write-host "! - No actions specified." -ForegroundColor Red
 }
+
+if ($cleanDictionary) {
+	write-host "o - Cleaning up the dictionary file $($selectedLanguageFile).dict." -ForegroundColor Blue
+	get-content "$($selectedLanguageFile).dict" | Sort-Object | get-unique > "$($selectedLanguageFile).sort.uniq.dict"
+	write-host "o - Saved cleaned dictionary file to: $($selectedLanguageFile).sort.uniq.dict" -ForegroundColor Cyan
+}
+write-host "x - Execution finished. Good luck with your wordlist!" -ForegroundColor Cyan
