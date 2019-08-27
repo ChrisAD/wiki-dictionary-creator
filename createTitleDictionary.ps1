@@ -1,7 +1,8 @@
-#Options with default values. These should be inputted preferably from command line. Pull request anyone? 
-$extractTitles = $TRUE
-$force = $FALSE
-$cleanDictionary = $TRUE
+[CmdletBinding()]
+    param (
+    [bool]$extractTitles=$true,
+    [bool]$force=$true,
+    [bool]$cleanDictionary=$true)
 
 
 if (!(Get-MpPreference | foreach-object{$_.DisableRealtimeMonitoring})) {
@@ -40,7 +41,7 @@ foreach ($link in $links) {
 
 for ($i = 0; $i -lt $col1.Count; $i++) {
 	if ($col1[$i]) {
-		write-host $col1[$i]"`t`t`t"$col2[$i]"`t`t`t"$col3[$i] -ForegroundColor Blue
+		write-host $col1[$i].ToString().PadRight(18," ")"`t`t"$col2[$i].ToString().PadRight(18," ")"`t`t"$col3[$i] -ForegroundColor Blue
 	}
 }
 
