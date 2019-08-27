@@ -3,8 +3,6 @@ $extractTitles = $TRUE
 $force = $FALSE
 $cleanDictionary = $TRUE
 
-#Requirements
-#Install-Module -Name 7Zip4Powershell
 
 if (!(Get-MpPreference | foreach-object{$_.DisableRealtimeMonitoring})) {
 	Write-Host "! - Windows defender Real Time monitoring enabled, expect significant performance reduction! Disable with 'Set-MpPreference -DisableRealtimeMonitoring 1'" -ForegroundColor Red
